@@ -13,8 +13,8 @@
   "demands": [],
   "version": {
     "Major": "0",
-    "Minor": "1",
-    "Patch": "0"
+    "Minor": "0",
+    "Patch": "2"
   },
   "minimumAgentVersion": "1.95.0",
   "instanceNameFormat": "CosmosDbSync $(message)",
@@ -23,7 +23,7 @@
       "name": "projectDir",
       "type": "string",
       "label": "Project directory",
-      "defaultValue": "",
+      "defaultValue": "$(System.DefaultWorkingDirectory)",
       "required": true,
       "helpMarkDown": "Root folder difinition. e.g. '$(System.DefaultWorkingDirectory)/cosmosdb' - define where cosmosdb items and procedures are located in."
     },
@@ -60,20 +60,20 @@
       "helpMarkDown": "Name of Cosmos DB account name, which will be synchronized."
     },
     {
-      "name": "containerName",
-      "type": "string",
-      "label": "Container name",
-      "defaultValue": "",
-      "required": true,
-      "helpMarkDown": "Name of Cosmos DB container."
-    },
-    {
       "name": "databaseName",
       "type": "string",
       "label": "Database name",
       "defaultValue": "",
       "required": true,
       "helpMarkDown": "Name of Cosmos DB database."
+    },
+    {
+      "name": "containerName",
+      "type": "string",
+      "label": "Container name",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of Cosmos DB container."
     },
     {
       "name": "scope",

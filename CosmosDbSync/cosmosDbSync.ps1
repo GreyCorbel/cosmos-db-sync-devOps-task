@@ -11,14 +11,16 @@ $databaseName = Get-VstsInput -Name 'databaseName' -Require
 $scope = Get-VstsInput -Name 'scope' -Require
 
 Write-Host "Input validation..."
-Write-Host "reading projectDir: " + $projectDir
-Write-Host "reading subscription: " + $subscription
-Write-Host "reading azureSubscription: " + $azureSubscription
-Write-Host "reading resourceGroup: " + $resourceGroup
-Write-Host "reading accountName: " + $accountName
-Write-Host "reading containerName: " + $containerName
-Write-Host "reading databaseName: " + $databaseName
-Write-Host "reading scope: " + $scope
+Write-Host "---------------------------------------------------------------"
+Write-Host "reading projectDir: " $projectDir
+Write-Host "reading subscription: " $subscription
+Write-Host "reading azureSubscription: " $azureSubscription
+Write-Host "reading resourceGroup: " $resourceGroup
+Write-Host "reading accountName: " $accountName
+Write-Host "reading containerName: " $containerName
+Write-Host "reading databaseName: " $databaseName
+Write-Host "reading scope: " $scope
+Write-Host "---------------------------------------------------------------"
 
  #>#load VstsTaskSdk module
 Write-Host "Installing dependencies..."
@@ -27,6 +29,7 @@ if ($null -eq (Get-Module -Name VstsTaskSdk -ListAvailable)) {
     Install-Module -Name VstsTaskSdk -Force -Scope CurrentUser -AllowClobber
 }
 Write-Host "Installation succeeded!"
+Write-Host "---------------------------------------------------------------"
 
 #load AadAuthentiacationFactory
 if ($null -eq (Get-Module -Name AadAuthenticationFactory -ListAvailable)) {
@@ -34,6 +37,7 @@ if ($null -eq (Get-Module -Name AadAuthenticationFactory -ListAvailable)) {
     Install-Module -Name AadAuthenticationFactory -Force -Scope CurrentUser
 }
 Write-Host "Installation succeeded!"
+Write-Host "---------------------------------------------------------------"
 
 # function declaration
 function Initialize-AadAuthenticationFactory 
@@ -114,28 +118,44 @@ function Get-AutoAccessToken
     }
 }
 
-Function Remove-AutoPowershell7Module
+Function UpdateAzStoredProcedure 
 {
-    param
-    (
-        [Parameter(Mandatory)]
-        [string]$Name,
-        [Parameter()]
-        [string]$AutomationAccountResourceId = $script:AutomationAccountResourceId
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$subscriptionId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$resourceGroupName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$accountName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$databaseName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$containerName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$storedProcedureName,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$storedProcedureBody
     )
 
     begin
     {
+        $uri = "https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$resourceGroupName/providers/Microsoft.DocumentDB/databaseAccounts/$accountName/sqlDatabases/$databaseName/containers/$containerName/storedProcedures/$storedProcedureName?api-version=2024-05-15"
         $headers = Get-AutoAccessToken -AsHashTable
-        $uri = "https://management.azure.com$AutomationAccountResourceId/Powershell72Modules/$Name`?api-version=2023-11-01"
+        $body = @{
+            id   = "pokus"
+            body = "test"
+        }
     }
     process
     {
-        write-verbose "Sending DELETE to $Uri"
-        Invoke-RestMethod -Method Delete `
-        -Uri $Uri `
-        -Headers $headers `
-        -ErrorAction Stop
+        $response = Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $body
+        return $response
     }
 }
 
@@ -212,7 +232,12 @@ switch ($serviceConnection.auth.scheme) {
 }
 
 Write-Host "Do process..."
-$headers = Get-AutoAccessToken -AsHashTable
-Write-Host "Header payload: "
-$headers
+Write-Host "---------------------------------------------------------------"
+
+
+$storedProcedureName = "pokus"
+$response = UpdateAzStoredProcedure -subscriptionId $subscription -resourceGroupName $resourceGroup -accountName $accountName -databaseName $databaseName -containerName $containerName -storedProcedureName $storedProcedureName -storedProcedureBody $storedProcedureBody
+
+Write-Host "response: "
+Write-Output $response
 
