@@ -1,0 +1,45 @@
+{
+    "manifestVersion": 1,
+    "id": "CosmosDbSync",
+    "name": "Cosmos DB synchronization",
+    "version": "0.0.1",
+    "publisher": "GreyCorbelSolutions",
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],    
+    "isDevelopment": "false",
+    "description": "Synchronize items and procedures to your Cosmos DB account.",
+    "categories": [
+        "Azure Pipelines"
+    ],
+    "icons": {
+        "default": "icon.png"
+    },
+    "content": {
+        "details": {
+            "path": "readme.md"
+        },
+        "license": {
+            "path": "eula.md"
+        }
+    },
+    "files": [
+        {
+            "path": "CosmosDbSync"
+        }
+    ],
+    "contributions": [
+        {
+            "id": "CosmosDbSync",
+            "type": "ms.vss-distributed-task.task",
+            "targets": [
+                "ms.vss-distributed-task.tasks"
+            ],
+            "properties": {
+                "name": "CosmosDbSync"
+            }
+        }
+    ]
+}

@@ -1,0 +1,92 @@
+{
+  "id": "315d2f50-5eca-11ef-82bf-1fde2266348d",
+  "name": "CosmosDbSync",
+  "friendlyName": "CosmosDbSync",
+  "description": "Synchronize Cosmos DB items and procedures",
+  "author": "GreyCorbel s.r.o.",
+  "helpMarkDown": "Replace with markdown to show in help",
+  "category": "Utility",
+  "visibility": [
+    "Build",
+    "Release"
+  ],
+  "demands": [],
+  "version": {
+    "Major": "0",
+    "Minor": "1",
+    "Patch": "0"
+  },
+  "minimumAgentVersion": "1.95.0",
+  "instanceNameFormat": "CosmosDbSync $(message)",
+  "inputs": [
+    {
+      "name": "projectDir",
+      "type": "string",
+      "label": "Project directory",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Root folder difinition. e.g. '$(System.DefaultWorkingDirectory)/cosmosdb' - define where cosmosdb items and procedures are located in."
+    },
+    {
+      "name": "subscription",
+      "type": "string",
+      "label": "Subscription",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of the subscription where Cosmos DB account is located in."
+    },
+    {
+      "name": "azureSubscription",
+      "type": "connectedService:AzureRM",
+      "label": "Azure subscription",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of service connection with contributors rights for defined subscription."
+    },
+    {
+      "name": "resourceGroup",
+      "type": "string",
+      "label": "Resource group",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of the resource group where Cosmos DB account is located in."
+    },
+    {
+      "name": "accountName",
+      "type": "string",
+      "label": "Cosmos DB account name",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of Cosmos DB account name, which will be synchronized."
+    },
+    {
+      "name": "containerName",
+      "type": "string",
+      "label": "Container name",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of Cosmos DB container."
+    },
+    {
+      "name": "databaseName",
+      "type": "string",
+      "label": "Database name",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of Cosmos DB database."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "label": "Scope",
+      "defaultValue": "full",
+      "required": true,
+      "helpMarkDown": "What to synchronize - 'full' (items and procedures), 'items', 'procedures'"
+    }
+  ],
+  "execution": {
+    "PowerShell3": {
+      "target": "cosmosDbSync.ps1"
+    }
+  }
+}
