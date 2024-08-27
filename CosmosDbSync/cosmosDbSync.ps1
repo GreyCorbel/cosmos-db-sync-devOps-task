@@ -1,66 +1,6 @@
 # function declaration
 $CosmosDBEndPoint = "https://$cosmosDBAccountName.documents.azure.com"
 
-function Get-SignedKey {
-    param (
-        [string] $Verb,
-        [string] $ResourceType,
-        [string] $ResourceLink,
-        [string] $Key,
-        [string] $DateTime
-    )
-    # Add Web Object
-    Add-Type -AssemblyName System.Web
-
-    #Define variables
-    $keyType = 'master'
-    $tokenVersion = '1.0' 
-    
-    #Build Auth Token
-    $hmacSha256 = New-Object System.Security.Cryptography.HMACSHA256
-    $hmacSha256.Key = [System.Convert]::FromBase64String($key) 
-    $payLoad = "$($verb.ToLowerInvariant())`n$($resourceType.ToLowerInvariant())`n$resourceLink`n$($dateTime.ToLowerInvariant())`n`n"
-    $hashPayLoad = $hmacSha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($payLoad))
-    $signature = [System.Convert]::ToBase64String($hashPayLoad) 
-    $authHeader = [System.Web.HttpUtility]::UrlEncode("type=$keyType&ver=$tokenVersion&sig=$signature")
-
-    return $authHeader
-}
-
-function Set-CosmosDBDocument {
-    param (
-        [string] $CosmosDBEndPoint,
-        [string] $Verb,
-        [string] $SignedKey,
-        [string] $DateTime,
-        [string] $Partitionkey,
-        [string] $Payload,
-        [string] $DocsId,
-        [string] $DatabaseId,
-        [string] $CollectionId
-
-    )
-    $resourceLink = "dbs/$databaseId/colls/$collectionId/docs"
-    $queryUri = "$CosmosDBEndPoint/$ResourceLink"
-    $queryUri
-
-    # Build Header
-    $header = @{
-        "Accept" = "application/json";
-        "Content-Type" = "application/json";
-        "authorization" = $SignedKey;
-        "x-ms-version" = "2018-12-31";
-        "x-ms-date" = $dateTime;
-        "x-ms-documentdb-partitionkey" = $partitionkey;
-        "x-ms-documentdb-is-upsert" = $true;
-    }
-
-    # Paload
-    $body = $Payload
-
-    $result = Invoke-RestMethod -Method $Verb -Uri $queryUri -Headers $header -Body $body
-    return $result
-}
 
 function Initialize-AadAuthenticationFactory 
 {
@@ -184,15 +124,17 @@ Function Update-AzStoredProcedure {
 Function Sync-StoredProcedures 
 {
     # Process each stored procedure file
-    $procedureFiles = Get-ChildItem -Path "$projectDir/Cosmos/Definitions/StoredProcedures" -Filter *.nosql # nebo .js -> domluvit s Jiřím
-    foreach ($file in $procedureFiles) {
-        $storedProcedureName = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
-        $storedProcedureBody = Get-Content -Path $file.FullName -Raw
-    
-        Write-Host "Updating stored procedure: $storedProcedureName"
-        try 
-        {
-            $response = Update-AzStoredProcedure -subscriptionId $subscription -resourceGroupName $resourceGroup -accountName $accountName -databaseName $databaseName -containerName $containerName -storedProcedureName $storedProcedureName -storedProcedureBody $storedProcedureBody
+    Write-Host "getting difinition files"
+    $definitions = @(Get-DefinitionFiles -FileType storedProcedures)
+    Write-Host "Iterationg through definition files"
+    foreach ($item in $definitions) {
+        try {
+            Write-Host "Getting file content"
+            $contentFile = Get-FileToProcess -FileType storedProcedures -FileName $item.definition
+            $content = Get-Content $contentFile -Raw
+            Write-Host "Show me file $($item.Name) content: $content"
+            Write-Host "Updating stored procedure: $storedProcedureName"
+            $response = Update-AzStoredProcedure -subscriptionId $subscription -resourceGroupName $resourceGroup -accountName $accountName -databaseName $databaseName -containerName $containerName -storedProcedureName $storedProcedureName -storedProcedureBody $content
             Write-Host "Response for $storedProcedureName = $response"
         }
         catch {
@@ -203,67 +145,24 @@ Function Sync-StoredProcedures
 
 Function Sync-Items
 {
-    $items = Get-ChildItem -Path "$projectDir/Cosmos/Definitions/Items" -Filter *.nosql # nebo .js -> domluvit s Jiřím
-    foreach ($file in $items) {
-        $itemName = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
-        $itemBody = Get-Content -Path $file.FullName -Raw
-    
-        Write-Host "inserting item: $itemName"
-        try 
-        {
-            # Get Primary master key
-            Write-Host "Geting primary key..."
-            #load AadAuthentiacationFactory
-            if ($null -eq (Get-Module -Name AadAuthenticationFactory -ListAvailable)) {
-                Write-Host "Az.CosmosDB module not found, installing..."
-                Install-Module -Name Az.CosmosDB -Force -Scope CurrentUser
-            }
+    Write-Host "getting difinition files"
+    $definitions = @(Get-DefinitionFiles -FileType workflows)
+    Write-Host "Connecting to: $accountName using existing addFactory"
+    $ctx = Connect-Cosmos -AccountName $accountName -Database $databaseName -Factory $script:aadAuthenticationFactory
+    Write-Host "Show context: $ctx" # pak smazat!
+    Write-Host "Iterationg through definition files"
+    foreach ($item in $definitions) {
+        try {
+            Write-Host "Getting file content"
+            $contentFile = Get-FileToProcess -FileType storedProcedures -FileName $item.definition
+            $content = Get-Content $contentFile -Raw
+            Write-Host "Show me file $($item.Name) content: $content"
 
-            $getkeys = Get-AzCosmosDBAccountKey -ResourceGroupName $resourceGroupName -Name $cosmosDBAccountName -Type "Keys"
-            $getPrimarykey = $getkeys.PrimaryMasterKey
-            $key = $getPrimarykey
-            Write-Host "PrimaryKey retrieved successfully"
-            
-            if([string]::IsNullOrEmpty($itemBody))
-            {
-                Write-Warning "Missing implementation file $($definition.definition)"
-                continue
-            }
-            write-host "Having definition file: $file"
-            $payload = Get-Content -Path $file -Raw
-        
-            $workflow = $payload | ConvertFrom-Json
-            $docsId = $workflow.id
-            $partitionkeyRaw = $workflow.partitionKey
-            $partitionkey = "[""$partitionkeyRaw""]"
-        
-            # define cosmos DB variables
-            $verb = "post"
-            $resourceType = "docs"
-            $resourceLink = "dbs/$databaseName/colls/$containerName"
-            $dateTime = [DateTime]::UtcNow.ToString("r")
-        
-            # get-signedkey
-            try {
-                $signedKey = Get-SignedKey -Verb $verb -ResourceType $resourceType -ResourceLink $resourceLink -Key $key -DateTime $dateTime
-                Write-Host ("Workflow signed key for " + $docsId + " was generated successfully!")
-            }
-            catch {
-                $_
-            }
-        
-            #Set-Document - call CosmosDB API
-            try {
-                $response = Set-CosmosDBDocument -CosmosDBEndPoint $cosmosDBEndPoint -Verb $verb -SignedKey $signedKey -DateTime $dateTime -Partitionkey $partitionkey -Payload $payload -DocsId $docsId -DatabaseId $databaseName -CollectionId $containerName
-                $response
-                Write-Host ("Workflow " + $docsId + " was updated successfully!")
-            }
-            catch {
-                $_
-            }
+            Write-Host "Inserting/Updating document..."
+            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content.partitionkey -Collection "requests" -IsUpsert #v source i definition chybí container -> hardcoded
         }
         catch {
-            _$
+            Write-Warning $_.Exception
         }
     }
 }
@@ -284,6 +183,7 @@ $scope = Get-VstsInput -Name 'scope' -Require
 Write-Host "Input validation..."
 Write-Host "---------------------------------------------------------------"
 Write-Host "reading projectDir: " $projectDir
+Write-Host "reading projectDir: " $environmentName
 Write-Host "reading subscription: " $subscription
 Write-Host "reading azureSubscription: " $azureSubscription
 Write-Host "reading resourceGroup: " $resourceGroup
@@ -310,10 +210,29 @@ if ($null -eq (Get-Module -Name AadAuthenticationFactory -ListAvailable)) {
 Write-Host "Installation succeeded!"
 Write-Host "---------------------------------------------------------------"
 
+#load cosmosLite
+if ($null -eq (Get-Module -Name CosmosLite -ListAvailable)) {
+    Write-Host "CosmosLite module not found, installing..."
+    Install-Module -Name CosmosLite -Force -Scope CurrentUser
+}
+Write-Host "Installation succeeded!"
+Write-Host "---------------------------------------------------------------"
+
+# import intermal modules
+Write-Host "Importing intermal modules..."
+$modulePath = [System.IO.Path]::Combine($PSScriptRoot, 'Module', 'AutoRuntime')
+Write-Host "module path: $modulePath"
+Import-Module $modulePath -Force -WarningAction SilentlyContinue
+Write-Host "Import succeeded!"
 
 # -------------------------------------------------------------------------
 # do process...
 Write-Host "Starting process..."
+
+#initialize runtime according to environment environment
+Write-Host "Getting environment setup and initializing..."
+Init-Environment -ProjectDir $ProjectDir -Environment $EnvironmentName
+
 # retrieve service connection object
 $serviceConnection = Get-VstsEndpoint -Name $azureSubscription -Require
 
@@ -350,6 +269,47 @@ switch ($serviceConnection.auth.scheme) {
         break;
      }
 
+     'ManagedServiceIdentity' {
+        Write-Host "ManagedIdentitx auth"
+
+        Initialize-AadAuthenticationFactory `
+            -serviceConnection $serviceConnection
+        break;
+     }
+
+     'WorkloadIdentityFederation' {
+        Write-Host "Workload identity auth"
+
+        # get service connection properties
+        $planId = Get-VstsTaskVariable -Name 'System.PlanId' -Require
+        $jobId = Get-VstsTaskVariable -Name 'System.JobId' -Require
+        $hub = Get-VstsTaskVariable -Name 'System.HostType' -Require
+        $projectId = Get-VstsTaskVariable -Name 'System.TeamProjectId' -Require
+        $uri = Get-VstsTaskVariable -Name 'System.CollectionUri' -Require
+        $serviceConnectionId = $azureSubscription
+
+        $vstsEndpoint = Get-VstsEndpoint -Name SystemVssConnection -Require
+        $vstsAccessToken = $vstsEndpoint.auth.parameters.AccessToken
+        $servicePrincipalId = $vstsEndpoint.auth.parameters.serviceprincipalid
+        $tenantId = $vstsEndpoint.auth.parameters.tenantid
+        
+        $url = "$uri/$projectId/_apis/distributedtask/hubs/$hub/plans/$planId/jobs/$jobId/oidctoken?serviceConnectionId=$serviceConnectionId`&api-version=7.2-preview.1"
+
+        $username = "username"
+        $password = $vstsAccessToken
+        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $username, $password)))
+
+        $response = Invoke-RestMethod -Uri $url -Method Post -Headers @{ "Authorization" = ("Basic {0}" -f $base64AuthInfo) } -ContentType "application/json"
+
+        $oidcToken = $response.oidcToken
+        $assertion = $oidcToken
+
+        Initialize-AadAuthenticationFactory `
+            -servicePrincipalId $servicePrincipalId `
+            -assertion $assertion `
+            -tenantId $tenantId
+        break;
+     }
 }
 
 Write-Host "Do process..."

@@ -26,7 +26,15 @@
       "label": "Project directory",
       "defaultValue": "$(System.DefaultWorkingDirectory)",
       "required": true,
-      "helpMarkDown": "Root folder difinition. e.g. '$(System.DefaultWorkingDirectory)/cosmosdb' - define where cosmosdb items and procedures are located in."
+      "helpMarkDown": "Root folder difinition. e.g. '$(System.DefaultWorkingDirectory)' - define where cosmosdb items and procedures are located in."
+    },
+    {
+      "name": "environmentName",
+      "type": "string",
+      "label": "Project directory",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Name of the environment."
     },
     {
       "name": "subscription",
