@@ -147,13 +147,11 @@ Function Sync-StoredProcedures
 
 Function Sync-Documents
 {
-    Write-Host "getting difinition files"
+    Write-Host "Getting difinition files"
     $definitions = @(Get-DefinitionFiles -FileType "Workflows")
-    Write-Host "Show definitions: $definitions"
     Write-Host "Connecting to: $accountName using existing addFactory"
     $ctx = Connect-Cosmos -AccountName $accountName -Database $databaseName -Factory $script:aadAuthenticationFactory
-    Write-Host "Show context: $ctx" # pak smazat!
-    Write-Host "Iterationg through definition files"
+
     foreach ($item in $definitions) {
         try {
             Write-Host "Getting file content"
@@ -162,10 +160,9 @@ Function Sync-Documents
             $content = Get-Content $contentFile -Raw
             Write-Host "Show me file content: $content"
             $content2Obj = $content | ConvertFrom-Json
-            Write-Host "Show me file as object content: $content2Obj"
 
             Write-Host "Inserting/Updating document..."
-            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content2Obj.partitionkey -Collection $containerName -IsUpsert #v source i definition chybí container -> hardcoded
+            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content2Obj.partitionkey -Collection $containerName -IsUpsert #v source i definition chybí container -> proto je jako vstupní parameter pro pipeline task
         }
         catch {
             Write-Warning $_.Exception
@@ -354,9 +351,3 @@ switch ($scope)
         break;
     }
 }
-
-
-
-
-# https://management.azure.com/subscriptions/38540dfd-0375-489a-8042-abdf73bf03f0/resourceGroups/Development/providers/Microsoft.DocumentDB/databaseAccounts/greycorbelcosmosdb/sqlDatabases/ToDoList/containers/Items/storedProcedures/-version=2024-05-15
-# https://management.azure.com/subscriptions/38540dfd-0375-489a-8042-abdf73bf03f0/resourceGroups/development/providers/Microsoft.DocumentDB/databaseAccounts/greycorbelcosmosdb/sqlDatabases/ToDoList/containers/Items/storedProcedures/addRequestJournal?api-version=2024-05-15
