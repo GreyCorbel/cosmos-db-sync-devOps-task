@@ -1,7 +1,4 @@
 # function declaration
-$CosmosDBEndPoint = "https://$cosmosDBAccountName.documents.azure.com"
-
-
 function Initialize-AadAuthenticationFactory 
 {
     [CmdletBinding()]
@@ -125,12 +122,12 @@ Function Sync-StoredProcedures
 {
     # Process each stored procedure file
     Write-Host "getting difinition files"
-    $definitions = @(Get-DefinitionFiles -FileType storedProcedures)
+    $definitions = @(Get-DefinitionFiles -FileType 'StoredProcedures')
     Write-Host "Iterationg through definition files"
     foreach ($item in $definitions) {
         try {
             Write-Host "Getting file content"
-            $contentFile = Get-FileToProcess -FileType storedProcedures -FileName $item.definition
+            $contentFile = Get-FileToProcess -FileType 'StoredProcedures' -FileName $item.definition
             $content = Get-Content $contentFile -Raw
             Write-Host "Show me file $($item.Name) content: $content"
             Write-Host "Updating stored procedure: $storedProcedureName"
@@ -143,10 +140,10 @@ Function Sync-StoredProcedures
     }
 }
 
-Function Sync-Items
+Function Sync-Documents
 {
     Write-Host "getting difinition files"
-    $definitions = @(Get-DefinitionFiles -FileType workflows)
+    $definitions = @(Get-DefinitionFiles -FileType 'Workflows')
     Write-Host "Connecting to: $accountName using existing addFactory"
     $ctx = Connect-Cosmos -AccountName $accountName -Database $databaseName -Factory $script:aadAuthenticationFactory
     Write-Host "Show context: $ctx" # pak smazat!
@@ -154,7 +151,7 @@ Function Sync-Items
     foreach ($item in $definitions) {
         try {
             Write-Host "Getting file content"
-            $contentFile = Get-FileToProcess -FileType storedProcedures -FileName $item.definition
+            $contentFile = Get-FileToProcess -FileType 'Workflows' -FileName $item.definition
             $content = Get-Content $contentFile -Raw
             Write-Host "Show me file $($item.Name) content: $content"
 
@@ -171,6 +168,7 @@ Function Sync-Items
 Write-Host "Reading task parameters"
 
 $projectDir = Get-VstsInput -Name 'projectDir' -Require
+$environmentName = Get-VstsInput -Name 'environmentName' -Require
 $subscription = Get-VstsInput -Name 'subscription' -Require
 $azureSubscription = Get-VstsInput -Name 'azureSubscription' -Require
 $resourceGroup = Get-VstsInput -Name 'resourceGroup' -Require
@@ -183,7 +181,7 @@ $scope = Get-VstsInput -Name 'scope' -Require
 Write-Host "Input validation..."
 Write-Host "---------------------------------------------------------------"
 Write-Host "reading projectDir: " $projectDir
-Write-Host "reading projectDir: " $environmentName
+Write-Host "reading environmentName: " $environmentName
 Write-Host "reading subscription: " $subscription
 Write-Host "reading azureSubscription: " $azureSubscription
 Write-Host "reading resourceGroup: " $resourceGroup
@@ -231,7 +229,7 @@ Write-Host "Starting process..."
 
 #initialize runtime according to environment environment
 Write-Host "Getting environment setup and initializing..."
-Init-Environment -ProjectDir $ProjectDir -Environment $EnvironmentName
+Init-Environment -ProjectDir $ProjectDir -Environment $environmentName
 
 # retrieve service connection object
 $serviceConnection = Get-VstsEndpoint -Name $azureSubscription -Require
@@ -330,19 +328,19 @@ switch ($scope)
     {
         Write-Host "full sync starting..."
         Sync-StoredProcedures
-        Sync-Items
+        Sync-Documents
         break;
     }
     'procedures'
     {
-        Write-Host "procedures sync starting..."
+        Write-Host "storedProcedures sync starting..."
         Sync-StoredProcedures
         break;
     }
-    'items'
+    'documents'
     {
-        Write-Host "items sync starting..."
-        Sync-Items
+        Write-Host "documents sync starting..."
+        Sync-Documents
         break;
     }
 }

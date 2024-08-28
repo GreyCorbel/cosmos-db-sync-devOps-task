@@ -15,7 +15,7 @@
   "version": {
     "Major": "0",
     "Minor": "0",
-    "Patch": "14"
+    "Patch": "20"
   },
   "minimumAgentVersion": "1.95.0",
   "instanceNameFormat": "CosmosDbSync $(message)",
@@ -31,10 +31,10 @@
     {
       "name": "environmentName",
       "type": "string",
-      "label": "Project directory",
-      "defaultValue": "",
+      "label": "Environment name",
+      "defaultValue": "Common",
       "required": true,
-      "helpMarkDown": "Name of the environment."
+      "helpMarkDown": "Name of the environment. e.g. common"
     },
     {
       "name": "subscription",
@@ -90,7 +90,7 @@
       "label": "Scope",
       "defaultValue": "full",
       "required": true,
-      "helpMarkDown": "What to synchronize - 'full' (items and procedures), 'items', 'procedures'"
+      "helpMarkDown": "What to synchronize - 'full' (documents and procedures), 'documents', 'procedures'"
     }
   ],
   "execution": {
