@@ -13,6 +13,7 @@ function Init-Environment
     [string]$script:ContentRoot = [System.IO.Path]::Combine($ProjectDir.FullName,'Source',$Environment)
     [string]$script:CommonContentRoot = [System.IO.Path]::Combine($ProjectDir.FullName,'Source','Common')
     [string]$script:DefinitionsRoot = [System.IO.Path]::Combine($ProjectDir.FullName,'Definitions')
+    Write-Host "definitionRoot: $script:DefinitionsRoot"
 }
 
 Function Validate-FileType

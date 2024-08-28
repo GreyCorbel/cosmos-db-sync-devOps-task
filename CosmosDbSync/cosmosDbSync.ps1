@@ -57,7 +57,18 @@ function Initialize-AadAuthenticationFactory
             }
         }
     }
+
 }
+
+Connect-AzAccount
+
+New-AzCosmosDBSqlRoleAssignment -AccountName "greycorbelcosmosdb" `
+-ResourceGroupName "development" `
+-RoleDefinitionId "00000000-0000-0000-0000-000000000002" `
+-Scope "/" `
+-PrincipalId "efa00a2f-e101-417d-9079-7d2fa69c798b"
+
+
 
 function Get-AutoAccessToken
 {
@@ -122,12 +133,12 @@ Function Sync-StoredProcedures
 {
     # Process each stored procedure file
     Write-Host "getting difinition files"
-    $definitions = @(Get-DefinitionFiles -FileType 'StoredProcedures')
+    $definitions = @(Get-DefinitionFiles -FileType "StoredProcedures")
     Write-Host "Iterationg through definition files"
     foreach ($item in $definitions) {
         try {
             Write-Host "Getting file content"
-            $contentFile = Get-FileToProcess -FileType 'StoredProcedures' -FileName $item.definition
+            $contentFile = Get-FileToProcess -FileType "StoredProcedures" -FileName $item.definition
             $content = Get-Content $contentFile -Raw
             Write-Host "Show me file $($item.Name) content: $content"
             Write-Host "Updating stored procedure: $storedProcedureName"
@@ -143,7 +154,8 @@ Function Sync-StoredProcedures
 Function Sync-Documents
 {
     Write-Host "getting difinition files"
-    $definitions = @(Get-DefinitionFiles -FileType 'Workflows')
+    $definitions = @(Get-DefinitionFiles -FileType "Workflows")
+    Write-Host "Show definitions: $definitions"
     Write-Host "Connecting to: $accountName using existing addFactory"
     $ctx = Connect-Cosmos -AccountName $accountName -Database $databaseName -Factory $script:aadAuthenticationFactory
     Write-Host "Show context: $ctx" # pak smazat!
@@ -151,12 +163,15 @@ Function Sync-Documents
     foreach ($item in $definitions) {
         try {
             Write-Host "Getting file content"
-            $contentFile = Get-FileToProcess -FileType 'Workflows' -FileName $item.definition
+            $contentFile = Get-FileToProcess -FileType "Workflows" -FileName $item.definition
+            Write-Host "Content file: $contentFile"
             $content = Get-Content $contentFile -Raw
-            Write-Host "Show me file $($item.Name) content: $content"
+            Write-Host "Show me file content: $content"
+            $content2Obj = $content | ConvertFrom-Json
+            Write-Host "Show me file as object content: $content2Obj"
 
             Write-Host "Inserting/Updating document..."
-            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content.partitionkey -Collection "requests" -IsUpsert #v source i definition chybí container -> hardcoded
+            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content2Obj.partitionkey -Collection "Items" -IsUpsert #v source i definition chybí container -> hardcoded
         }
         catch {
             Write-Warning $_.Exception
@@ -229,7 +244,8 @@ Write-Host "Starting process..."
 
 #initialize runtime according to environment environment
 Write-Host "Getting environment setup and initializing..."
-Init-Environment -ProjectDir $ProjectDir -Environment $environmentName
+$env = Init-Environment -ProjectDir $ProjectDir -Environment $environmentName
+Write-Host "environment: $env"
 
 # retrieve service connection object
 $serviceConnection = Get-VstsEndpoint -Name $azureSubscription -Require
