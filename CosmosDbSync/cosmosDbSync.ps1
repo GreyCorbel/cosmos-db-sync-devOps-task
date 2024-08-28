@@ -60,16 +60,6 @@ function Initialize-AadAuthenticationFactory
 
 }
 
-Connect-AzAccount
-
-New-AzCosmosDBSqlRoleAssignment -AccountName "greycorbelcosmosdb" `
--ResourceGroupName "development" `
--RoleDefinitionId "00000000-0000-0000-0000-000000000002" `
--Scope "/" `
--PrincipalId "efa00a2f-e101-417d-9079-7d2fa69c798b"
-
-
-
 function Get-AutoAccessToken
 {
     param
@@ -106,12 +96,11 @@ Function Update-AzStoredProcedure {
         [string]$storedProcedureBody
     )
     begin {
-        $uri = "https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$resourceGroupName/providers/Microsoft.DocumentDB/databaseAccounts/$accountName/sqlDatabases/$databaseName/containers/$containerName/storedProcedures/$storedProcedureName?api-version=2024-05-15"
+        $uri = "https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$resourceGroupName/providers/Microsoft.DocumentDB/databaseAccounts/$accountName/sqlDatabases/$databaseName/containers/$containerName/storedProcedures/$($storedProcedureName)?api-version=2024-05-15"
+        
         # develop header and get access token
-        $header = @{
-            "Content-Type" = "application/json";
-            "Authorization" = Get-AutoAccessToken;
-        }
+        $header = Get-AutoAccessToken -AsHashTable
+
         # format req body
         $body = @{
             properties = @{
@@ -134,15 +123,20 @@ Function Sync-StoredProcedures
     # Process each stored procedure file
     Write-Host "getting difinition files"
     $definitions = @(Get-DefinitionFiles -FileType "StoredProcedures")
-    Write-Host "Iterationg through definition files"
+    
     foreach ($item in $definitions) {
         try {
             Write-Host "Getting file content"
             $contentFile = Get-FileToProcess -FileType "StoredProcedures" -FileName $item.definition
             $content = Get-Content $contentFile -Raw
             Write-Host "Show me file $($item.Name) content: $content"
+            $storedProcedureName = $item.name
+
+            # liší se od logiky ukládání dokumentů, stored procedures jsou rozděleny s source adresáři do adresářů podle kontainerů, proto si z definice vyzobnu kontainer a podle toho to rozdeluji, u dokumentů v definici kontejnery chybí -> bude potřeba doděalt
+            $storedProcedureContainer = $item.container
+
             Write-Host "Updating stored procedure: $storedProcedureName"
-            $response = Update-AzStoredProcedure -subscriptionId $subscription -resourceGroupName $resourceGroup -accountName $accountName -databaseName $databaseName -containerName $containerName -storedProcedureName $storedProcedureName -storedProcedureBody $content
+            $response = Update-AzStoredProcedure -subscriptionId $subscription -resourceGroupName $resourceGroup -accountName $accountName -databaseName $databaseName -containerName $storedProcedureContainer -storedProcedureName $storedProcedureName -storedProcedureBody $content
             Write-Host "Response for $storedProcedureName = $response"
         }
         catch {
@@ -171,7 +165,7 @@ Function Sync-Documents
             Write-Host "Show me file as object content: $content2Obj"
 
             Write-Host "Inserting/Updating document..."
-            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content2Obj.partitionkey -Collection "Items" -IsUpsert #v source i definition chybí container -> hardcoded
+            New-CosmosDocument -Context $ctx -Document $content -PartitionKey $content2Obj.partitionkey -Collection $containerName -IsUpsert #v source i definition chybí container -> hardcoded
         }
         catch {
             Write-Warning $_.Exception
@@ -347,7 +341,7 @@ switch ($scope)
         Sync-Documents
         break;
     }
-    'procedures'
+    'storedprocedures'
     {
         Write-Host "storedProcedures sync starting..."
         Sync-StoredProcedures
@@ -361,3 +355,8 @@ switch ($scope)
     }
 }
 
+
+
+
+# https://management.azure.com/subscriptions/38540dfd-0375-489a-8042-abdf73bf03f0/resourceGroups/Development/providers/Microsoft.DocumentDB/databaseAccounts/greycorbelcosmosdb/sqlDatabases/ToDoList/containers/Items/storedProcedures/-version=2024-05-15
+# https://management.azure.com/subscriptions/38540dfd-0375-489a-8042-abdf73bf03f0/resourceGroups/development/providers/Microsoft.DocumentDB/databaseAccounts/greycorbelcosmosdb/sqlDatabases/ToDoList/containers/Items/storedProcedures/addRequestJournal?api-version=2024-05-15

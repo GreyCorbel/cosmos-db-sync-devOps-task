@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "CosmosDbSync",
     "name": "Cosmos DB synchronization",
-    "version": "0.0.24",
+    "version": "0.0.30",
     "publisher": "GreyCorbelSolutions",
     "targets": [
         {
